@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:local": "supabase start -x logflare,vector,studio,imgproxy,realtime,pg_meta",
+    "db:local:parar": "supabase stop",
+    "db:local:reset": "supabase db reset",
+    "db:migraciones": "supabase migration list",
+    "db:tipos": "supabase gen types typescript --linked > src/core/types/database.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -33,7 +38,6 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
-    "ajv": "^8.20.0",
     "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
