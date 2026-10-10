@@ -1,0 +1,2256 @@
+{
+  "info": {
+    "_postman_id": "bf0a9983-1c69-484c-a27d-fca58774d4cc",
+    "name": "ParkTulua - Supabase Fase 1",
+    "description": "Peticiones PostgREST contra el proyecto ParkTulua-backend (Supabase) con el token de Firebase. Cubre la Fase 1 de RLS: lectura mas perfil propio.\n\nOrden: ejecutar 00 (login) y luego las demas carpetas. Variables secretas (anon key, API key de Firebase, correo y contrasena) van en el environment, no en la coleccion.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{firebase_id_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "00 Firebase Authentication",
+      "description": "Se ejecutan contra Firebase, no contra Supabase. Ejecutar primero.",
+      "item": [
+        {
+          "name": "Login con correo y contrasena",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={{firebase_api_key}}",
+              "host": [
+                "identitytoolkit",
+                "googleapis",
+                "com"
+              ],
+              "path": [
+                "v1",
+                "accounts:signInWithPassword"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{firebase_api_key}}"
+                }
+              ]
+            },
+            "description": "Obtiene el ID token de Firebase. Guarda token, refresh token y uid en variables de la coleccion y comprueba que el token traiga role=authenticated (UNI-57).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"returnSecureToken\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b64 = (s) => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return atob(s); };",
+                  "pm.test('Firebase respondio 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.collectionVariables.set('firebase_id_token', r.idToken);",
+                  "pm.collectionVariables.set('firebase_refresh_token', r.refreshToken);",
+                  "pm.collectionVariables.set('firebase_uid', r.localId);",
+                  "const payload = JSON.parse(b64(r.idToken.split('.')[1]));",
+                  "console.log('Claims del token:', JSON.stringify(payload, null, 2));",
+                  "pm.test('El token trae role=authenticated (UNI-57)', () => pm.expect(payload.role).to.eql('authenticated'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login como invitado (anonimo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={{firebase_api_key}}",
+              "host": [
+                "identitytoolkit",
+                "googleapis",
+                "com"
+              ],
+              "path": [
+                "v1",
+                "accounts:signUp"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{firebase_api_key}}"
+                }
+              ]
+            },
+            "description": "Crea una sesion anonima de Firebase (modo invitado de la app movil). Sirve para probar lectura de catalogos y que NO se pueda crear perfil en usuario.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"returnSecureToken\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b64 = (s) => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return atob(s); };",
+                  "pm.test('Firebase respondio 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.collectionVariables.set('firebase_id_token', r.idToken);",
+                  "pm.collectionVariables.set('firebase_refresh_token', r.refreshToken);",
+                  "pm.collectionVariables.set('firebase_uid', r.localId);",
+                  "const payload = JSON.parse(b64(r.idToken.split('.')[1]));",
+                  "console.log('Claims del token invitado:', JSON.stringify(payload, null, 2));",
+                  "pm.test('Proveedor anonymous', () => pm.expect(payload.firebase.sign_in_provider).to.eql('anonymous'));",
+                  "pm.test('El token trae role=authenticated', () => pm.expect(payload.role).to.eql('authenticated'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Renovar token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "https://securetoken.googleapis.com/v1/token?key={{firebase_api_key}}",
+              "host": [
+                "securetoken",
+                "googleapis",
+                "com"
+              ],
+              "path": [
+                "v1",
+                "token"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{firebase_api_key}}"
+                }
+              ]
+            },
+            "description": "Renueva el ID token con el refresh token. Util despues de que se asigne el claim role (el claim solo aparece en tokens nuevos).",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "refresh_token",
+                  "type": "text"
+                },
+                {
+                  "key": "refresh_token",
+                  "value": "{{firebase_refresh_token}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const b64 = (s) => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return atob(s); };",
+                  "pm.test('Firebase respondio 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.collectionVariables.set('firebase_id_token', r.id_token);",
+                  "pm.collectionVariables.set('firebase_refresh_token', r.refresh_token);",
+                  "pm.collectionVariables.set('firebase_uid', r.user_id);",
+                  "const payload = JSON.parse(b64(r.id_token.split('.')[1]));",
+                  "pm.test('El token renovado trae role=authenticated', () => pm.expect(payload.role).to.eql('authenticated'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Perfil y control de acceso (login web y movil)",
+      "description": "",
+      "item": [
+        {
+          "name": "Mi perfil (usuario)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/usuario?select=*",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "usuario"
+              ],
+              "query": [
+                {
+                  "key": "select",
+                  "value": "*"
+                }
+              ]
+            },
+            "description": "RLS limita el resultado al usuario cuyo firebase_uid coincide con el sub del token. Arreglo vacio = la persona aun no tiene perfil."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "const d = pm.response.json();",
+                  "pm.test('A lo sumo un perfil', () => pm.expect(d.length).to.be.at.most(1));",
+                  "if (d.length) pm.collectionVariables.set('usuario_id', d[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear mi perfil (primer inicio de sesion)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Prefer",
+                "value": "return=representation",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/usuario",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "usuario"
+              ]
+            },
+            "description": "Permitido por usuario_insert_propio: firebase_uid debe ser igual al sub del token y la sesion no puede ser anonima. Solo se pueden enviar firebase_uid, nombre_completo y correo (el correo en minusculas).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firebase_uid\": \"{{firebase_uid}}\",\n  \"nombre_completo\": \"Nombre Apellido\",\n  \"correo\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Creado (201)', () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json();",
+                  "if (Array.isArray(d) && d.length) pm.collectionVariables.set('usuario_id', d[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actualizar mi perfil",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Prefer",
+                "value": "return=representation",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/usuario?firebase_uid=eq.{{firebase_uid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "usuario"
+              ],
+              "query": [
+                {
+                  "key": "firebase_uid",
+                  "value": "eq.{{firebase_uid}}"
+                }
+              ]
+            },
+            "description": "Solo nombre_completo y correo son actualizables.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_completo\": \"Nombre Actualizado\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mis asignaciones activas (guardia de acceso de la web)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/asignacion_parqueadero?estado=eq.activo&select=id,rol,estado,parqueadero(id,nombre,direccion)",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "asignacion_parqueadero"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "eq.activo"
+                },
+                {
+                  "key": "select",
+                  "value": "id,rol,estado,parqueadero(id,nombre,direccion)"
+                }
+              ]
+            },
+            "description": "Control de acceso del personal: si el arreglo viene vacio la web debe negar la entrada. Si trae varios parqueaderos, la web necesita un selector de parqueadero activo (decision de interfaz pendiente)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "const d = pm.response.json();",
+                  "if (d.length) pm.collectionVariables.set('parqueadero_id', d[0].parqueadero.id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Catalogo y consulta de parqueaderos (conductor, invitado y personal)",
+      "description": "",
+      "item": [
+        {
+          "name": "Tipos de vehiculo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/tipo_vehiculo?select=id,codigo,nombre,requiere_placa&order=nombre",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "tipo_vehiculo"
+              ],
+              "query": [
+                {
+                  "key": "select",
+                  "value": "id,codigo,nombre,requiere_placa"
+                },
+                {
+                  "key": "order",
+                  "value": "nombre"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lista de parqueaderos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/parqueadero?select=id,nombre,direccion,latitud,longitud&order=nombre",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "parqueadero"
+              ],
+              "query": [
+                {
+                  "key": "select",
+                  "value": "id,nombre,direccion,latitud,longitud"
+                },
+                {
+                  "key": "order",
+                  "value": "nombre"
+                }
+              ]
+            },
+            "description": "RF-02.1 y RF-02.2 (lista y mapa)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Parqueaderos en un area (bounding box)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/parqueadero?latitud=gte.{{lat_min}}&latitud=lte.{{lat_max}}&longitud=gte.{{lon_min}}&longitud=lte.{{lon_max}}&select=id,nombre,direccion,latitud,longitud",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "parqueadero"
+              ],
+              "query": [
+                {
+                  "key": "latitud",
+                  "value": "gte.{{lat_min}}"
+                },
+                {
+                  "key": "latitud",
+                  "value": "lte.{{lat_max}}"
+                },
+                {
+                  "key": "longitud",
+                  "value": "gte.{{lon_min}}"
+                },
+                {
+                  "key": "longitud",
+                  "value": "lte.{{lon_max}}"
+                },
+                {
+                  "key": "select",
+                  "value": "id,nombre,direccion,latitud,longitud"
+                }
+              ]
+            },
+            "description": "Aproximacion a RF-02.1 sin PostGIS: el cliente envia el rectangulo visible del mapa y ordena por distancia localmente."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar por nombre o direccion",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/parqueadero?or=(nombre.ilike.*{{busqueda}}*,direccion.ilike.*{{busqueda}}*)&select=id,nombre,direccion",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "parqueadero"
+              ],
+              "query": [
+                {
+                  "key": "or",
+                  "value": "(nombre.ilike.*{{busqueda}}*,direccion.ilike.*{{busqueda}}*)"
+                },
+                {
+                  "key": "select",
+                  "value": "id,nombre,direccion"
+                }
+              ]
+            },
+            "description": "RF-02.3."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ficha de un parqueadero",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/parqueadero?id=eq.{{parqueadero_id}}&select=id,nombre,direccion,latitud,longitud,parqueadero_tipo_vehiculo(capacidad,cupos_reservables,tarifa_hora,tipo_vehiculo(codigo,nombre)),servicio(id,nombre,precio,duracion_estimada_min)",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "parqueadero"
+              ],
+              "query": [
+                {
+                  "key": "id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "select",
+                  "value": "id,nombre,direccion,latitud,longitud,parqueadero_tipo_vehiculo(capacidad,cupos_reservables,tarifa_hora,tipo_vehiculo(codigo,nombre)),servicio(id,nombre,precio,duracion_estimada_min)"
+                }
+              ]
+            },
+            "description": "RF-02.2. Las filas inactivas de admision y servicios no se devuelven (politicas con activo). Horario y estado operativo no existen en el esquema (D-ER3-19)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Capacidad y tarifas por tipo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/parqueadero_tipo_vehiculo?parqueadero_id=eq.{{parqueadero_id}}&select=id,capacidad,cupos_reservables,tarifa_hora,tipo_vehiculo(codigo,nombre)",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "parqueadero_tipo_vehiculo"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "select",
+                  "value": "id,capacidad,cupos_reservables,tarifa_hora,tipo_vehiculo(codigo,nombre)"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Servicios del parqueadero",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/servicio?parqueadero_id=eq.{{parqueadero_id}}&select=id,nombre,precio,duracion_estimada_min&order=nombre",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "servicio"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "select",
+                  "value": "id,nombre,precio,duracion_estimada_min"
+                },
+                {
+                  "key": "order",
+                  "value": "nombre"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Dashboard del personal (lectura)",
+      "description": "Todas filtran por parqueadero_id. RLS ya restringe a los parqueaderos con asignacion activa; el filtro explicito evita mezclar parqueaderos cuando la persona administra varios.",
+      "item": [
+        {
+          "name": "Capacidad por tipo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/parqueadero_tipo_vehiculo?parqueadero_id=eq.{{parqueadero_id}}&select=capacidad,cupos_reservables,tarifa_hora,tipo_vehiculo(codigo,nombre)",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "parqueadero_tipo_vehiculo"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "select",
+                  "value": "capacidad,cupos_reservables,tarifa_hora,tipo_vehiculo(codigo,nombre)"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vehiculos dentro (estancias en curso)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/estancia?parqueadero_id=eq.{{parqueadero_id}}&estado=eq.en_curso&select=id,hora_entrada,numero_ficha,reserva_id,vehiculo(placa,tipo_vehiculo(codigo,nombre))&order=hora_entrada.desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "estancia"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "estado",
+                  "value": "eq.en_curso"
+                },
+                {
+                  "key": "select",
+                  "value": "id,hora_entrada,numero_ficha,reserva_id,vehiculo(placa,tipo_vehiculo(codigo,nombre))"
+                },
+                {
+                  "key": "order",
+                  "value": "hora_entrada.desc"
+                }
+              ]
+            },
+            "description": "RF-08.1. La ocupacion fisica por tipo se calcula en el cliente contando estas filas contra la capacidad."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Conteo de vehiculos dentro",
+          "request": {
+            "method": "HEAD",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Prefer",
+                "value": "count=exact",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/estancia?parqueadero_id=eq.{{parqueadero_id}}&estado=eq.en_curso&select=id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "estancia"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "estado",
+                  "value": "eq.en_curso"
+                },
+                {
+                  "key": "select",
+                  "value": "id"
+                }
+              ]
+            },
+            "description": "El total viene en el encabezado Content-Range."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "console.log('Content-Range:', pm.response.headers.get('Content-Range'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservas activas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/reserva?parqueadero_id=eq.{{parqueadero_id}}&estado=in.(pendiente,confirmada)&select=id,estado,vence_en,duracion_estimada_min,usuario_id,vehiculo(placa,tipo_vehiculo(codigo))&order=vence_en.asc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "reserva"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "estado",
+                  "value": "in.(pendiente,confirmada)"
+                },
+                {
+                  "key": "select",
+                  "value": "id,estado,vence_en,duracion_estimada_min,usuario_id,vehiculo(placa,tipo_vehiculo(codigo))"
+                },
+                {
+                  "key": "order",
+                  "value": "vence_en.asc"
+                }
+              ]
+            },
+            "description": "usuario_id es solo un identificador: el personal no puede leer el nombre del conductor con las politicas actuales (usuario solo se lee a si mismo)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservas del dia",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/reserva?parqueadero_id=eq.{{parqueadero_id}}&created_at=gte.{{fecha_inicio_dia}}&select=id,estado,created_at,vence_en,vehiculo(placa)&order=created_at.desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "reserva"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "created_at",
+                  "value": "gte.{{fecha_inicio_dia}}"
+                },
+                {
+                  "key": "select",
+                  "value": "id,estado,created_at,vence_en,vehiculo(placa)"
+                },
+                {
+                  "key": "order",
+                  "value": "created_at.desc"
+                }
+              ]
+            },
+            "description": "fecha_inicio_dia se calcula en el pre-request a las 00:00 locales."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('fecha_inicio_dia', new Date(new Date().setHours(0,0,0,0)).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pagos recientes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/pago?parqueadero_id=eq.{{parqueadero_id}}&select=id,estado,monto,moneda,referencia_externa,created_at,reserva_id,estancia_id&order=created_at.desc&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "pago"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "select",
+                  "value": "id,estado,monto,moneda,referencia_externa,created_at,reserva_id,estancia_id"
+                },
+                {
+                  "key": "order",
+                  "value": "created_at.desc"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pagos aprobados del dia (para sumar ingresos)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/pago?parqueadero_id=eq.{{parqueadero_id}}&estado=eq.aprobado&created_at=gte.{{fecha_inicio_dia}}&select=monto,moneda",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "pago"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "estado",
+                  "value": "eq.aprobado"
+                },
+                {
+                  "key": "created_at",
+                  "value": "gte.{{fecha_inicio_dia}}"
+                },
+                {
+                  "key": "select",
+                  "value": "monto,moneda"
+                }
+              ]
+            },
+            "description": "El total se suma en el cliente. Es informacion derivada y no se almacena."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('fecha_inicio_dia', new Date(new Date().setHours(0,0,0,0)).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Servicios en curso",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/servicio_solicitado?parqueadero_id=eq.{{parqueadero_id}}&estado=in.(en_espera,en_proceso)&select=id,estado,precio_pactado,created_at,estancia_id,reserva_id,servicio(nombre)&order=created_at.desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "servicio_solicitado"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "estado",
+                  "value": "in.(en_espera,en_proceso)"
+                },
+                {
+                  "key": "select",
+                  "value": "id,estado,precio_pactado,created_at,estancia_id,reserva_id,servicio(nombre)"
+                },
+                {
+                  "key": "order",
+                  "value": "created_at.desc"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Estancias finalizadas recientes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/estancia?parqueadero_id=eq.{{parqueadero_id}}&estado=eq.finalizada&select=id,hora_entrada,hora_salida,valor_parqueo_generado,vehiculo(placa)&order=hora_salida.desc&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "estancia"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                },
+                {
+                  "key": "estado",
+                  "value": "eq.finalizada"
+                },
+                {
+                  "key": "select",
+                  "value": "id,hora_entrada,hora_salida,valor_parqueo_generado,vehiculo(placa)"
+                },
+                {
+                  "key": "order",
+                  "value": "hora_salida.desc"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Cuenta del conductor registrado",
+      "description": "",
+      "item": [
+        {
+          "name": "Mis vehiculos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/usuario_vehiculo?activo=eq.true&select=activo,vehiculo(id,placa,tipo_vehiculo(codigo,nombre))",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "usuario_vehiculo"
+              ],
+              "query": [
+                {
+                  "key": "activo",
+                  "value": "eq.true"
+                },
+                {
+                  "key": "select",
+                  "value": "activo,vehiculo(id,placa,tipo_vehiculo(codigo,nombre))"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quitar un vehiculo de mi lista",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Prefer",
+                "value": "return=representation",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/usuario_vehiculo?usuario_id=eq.{{usuario_id}}&vehiculo_id=eq.{{vehiculo_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "usuario_vehiculo"
+              ],
+              "query": [
+                {
+                  "key": "usuario_id",
+                  "value": "eq.{{usuario_id}}"
+                },
+                {
+                  "key": "vehiculo_id",
+                  "value": "eq.{{vehiculo_id}}"
+                }
+              ]
+            },
+            "description": "Solo se puede cambiar activo. Registrar un vehiculo nuevo no es posible todavia: no hay politica de insercion en vehiculo ni usuario_vehiculo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activo\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Historial: mis reservas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/reserva?usuario_id=eq.{{usuario_id}}&select=id,estado,created_at,vence_en,parqueadero(nombre),vehiculo(placa)&order=created_at.desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "reserva"
+              ],
+              "query": [
+                {
+                  "key": "usuario_id",
+                  "value": "eq.{{usuario_id}}"
+                },
+                {
+                  "key": "select",
+                  "value": "id,estado,created_at,vence_en,parqueadero(nombre),vehiculo(placa)"
+                },
+                {
+                  "key": "order",
+                  "value": "created_at.desc"
+                }
+              ]
+            },
+            "description": "RF-04.4: por operaciones de la cuenta, nunca por vehiculo."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Historial: mis estancias",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/estancia?usuario_id=eq.{{usuario_id}}&select=id,estado,hora_entrada,hora_salida,valor_parqueo_generado,parqueadero(nombre),vehiculo(placa)&order=hora_entrada.desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "estancia"
+              ],
+              "query": [
+                {
+                  "key": "usuario_id",
+                  "value": "eq.{{usuario_id}}"
+                },
+                {
+                  "key": "select",
+                  "value": "id,estado,hora_entrada,hora_salida,valor_parqueo_generado,parqueadero(nombre),vehiculo(placa)"
+                },
+                {
+                  "key": "order",
+                  "value": "hora_entrada.desc"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Historial: mis pagos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/pago?select=id,estado,monto,moneda,created_at,reserva_id,estancia_id&order=created_at.desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "pago"
+              ],
+              "query": [
+                {
+                  "key": "select",
+                  "value": "id,estado,monto,moneda,created_at,reserva_id,estancia_id"
+                },
+                {
+                  "key": "order",
+                  "value": "created_at.desc"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es un arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Pruebas negativas de seguridad (deben fallar)",
+      "description": "Cada una debe terminar en 401 o 403 salvo la ultima, que debe devolver un arreglo vacio.",
+      "item": [
+        {
+          "name": "Leer codigo_verificacion",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/codigo_verificacion?select=*",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "codigo_verificacion"
+              ],
+              "query": [
+                {
+                  "key": "select",
+                  "value": "*"
+                }
+              ]
+            },
+            "description": "La tabla no tiene permisos para la app."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Acceso denegado (401 o 403)', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leer intento_validacion",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/intento_validacion?select=*",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "intento_validacion"
+              ],
+              "query": [
+                {
+                  "key": "select",
+                  "value": "*"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Acceso denegado (401 o 403)', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leer calificacion",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/calificacion?select=*",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "calificacion"
+              ],
+              "query": [
+                {
+                  "key": "select",
+                  "value": "*"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Acceso denegado (401 o 403)', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear parqueadero",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/parqueadero",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "parqueadero"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Intruso\",\n  \"direccion\": \"x\",\n  \"latitud\": 4.08,\n  \"longitud\": -76.19\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Acceso denegado (401 o 403)', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear reserva directo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/reserva",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "reserva"
+              ]
+            },
+            "description": "Las operaciones que cambian estado deben pasar por el backend (Fase 2).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parqueadero_id\": \"{{parqueadero_id}}\",\n  \"vehiculo_id\": \"{{vehiculo_id}}\",\n  \"duracion_estimada_min\": 60,\n  \"vence_en\": \"2030-01-01T00:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Acceso denegado (401 o 403)', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cambiar capacidad desde la app",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/parqueadero_tipo_vehiculo?parqueadero_id=eq.{{parqueadero_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "parqueadero_tipo_vehiculo"
+              ],
+              "query": [
+                {
+                  "key": "parqueadero_id",
+                  "value": "eq.{{parqueadero_id}}"
+                }
+              ]
+            },
+            "description": "La web aun no puede actualizar cupos (Fase 2).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"capacidad\": 999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Acceso denegado (401 o 403)', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear perfil con firebase_uid ajeno",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/usuario",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "usuario"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firebase_uid\": \"uid_de_otra_persona\",\n  \"nombre_completo\": \"Suplantacion\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Acceso denegado (401 o 403)', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sin token de usuario (solo apikey)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/parqueadero?select=id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "parqueadero"
+              ],
+              "query": [
+                {
+                  "key": "select",
+                  "value": "id"
+                }
+              ]
+            },
+            "description": "El rol anon no tiene permisos: hasta que el token traiga role=authenticated, toda la app queda en este estado.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Acceso denegado (401 o 403)', () => pm.expect(pm.response.code).to.be.oneOf([401, 403]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Asignaciones de otras personas (debe devolver solo las mias)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_anon_key}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_id_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/rest/v1/asignacion_parqueadero?usuario_id=neq.{{usuario_id}}&select=id,usuario_id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "rest",
+                "v1",
+                "asignacion_parqueadero"
+              ],
+              "query": [
+                {
+                  "key": "usuario_id",
+                  "value": "neq.{{usuario_id}}"
+                },
+                {
+                  "key": "select",
+                  "value": "id,usuario_id"
+                }
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No hay filas de otras personas', () => pm.expect(pm.response.json().length).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "firebase_id_token",
+      "value": ""
+    },
+    {
+      "key": "firebase_refresh_token",
+      "value": ""
+    },
+    {
+      "key": "firebase_uid",
+      "value": ""
+    },
+    {
+      "key": "usuario_id",
+      "value": ""
+    },
+    {
+      "key": "parqueadero_id",
+      "value": "11111111-1111-4111-8111-111111111111"
+    },
+    {
+      "key": "vehiculo_id",
+      "value": ""
+    },
+    {
+      "key": "fecha_inicio_dia",
+      "value": ""
+    },
+    {
+      "key": "busqueda",
+      "value": "Central"
+    },
+    {
+      "key": "lat_min",
+      "value": "4.05"
+    },
+    {
+      "key": "lat_max",
+      "value": "4.12"
+    },
+    {
+      "key": "lon_min",
+      "value": "-76.23"
+    },
+    {
+      "key": "lon_max",
+      "value": "-76.15"
+    }
+  ]
+}
