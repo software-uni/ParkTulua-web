@@ -1,19 +1,3 @@
----
-fileClass: NotaBase, NotaBase-mejorado
-source: 
-id: ParkTulua-Guia-Supabase-CLI
-tipo: setup
-aliases: [Guia Supabase CLI ParkTuluá, Configurar Supabase CLI, Supabase CLI parkTulua-web]
-tags: [Gestion/Universidad, Dev/Backend, Infra/Bases-Datos]
-fecha_creacion: 2026-10-09
-fecha_actualizacion: 2026-10-09
-autor: Alejandro
-estado: En progreso
-categoria:
-  - SoftwareDeveloper
-referencias: [ParkTulua-Modelo-Logico, ParkTulua-Especificacion-de-Requisitos, Readme-web]
-enlace_directo: ""
----
 # Guía de configuración de Supabase CLI: ParkTuluá
 
 > Descripción
