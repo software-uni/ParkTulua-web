@@ -77,7 +77,7 @@ La seguridad de la base de datos está en **Fase 1: solo lectura**. La web puede
    ```
    git branch main
    git pull
-   git checkout -b
+   git checkout -b feature/nombre-corto-responsabilidad
    ```
 5. Arranca la web en modo desarrollo:
    ```
@@ -98,21 +98,26 @@ La seguridad de la base de datos está en **Fase 1: solo lectura**. La web puede
 
 ## 4. Librerías del proyecto
 
-Todas se agregan **solo con acuerdo del grupo** (ver sección 8).
+### Tabla de dependencias corregida (para el README)
 
-| Librería                                   | Para qué                                               | Estado                       |
-| ------------------------------------------ | ------------------------------------------------------ | ---------------------------- |
-| `react`, `react-dom`, `typescript`, `vite` | Base del proyecto (vienen con la plantilla `react-ts`) | En uso                       |
-| `react-router` (versión 7)                 | Navegación entre pantallas                             | En uso                       |
-| `@supabase/supabase-js`                    | Leer datos de Supabase                                 | En uso                       |
-| `firebase`                                 | Inicio de sesión (Firebase Authentication)             | En uso                       |
-| `tailwindcss` y `@tailwindcss/vite`        | Estilos                                                | En uso                       |
-| `clsx` y `tailwind-merge`                  | Combinar clases de Tailwind sin choques                | En uso                       |
-| `lucide-react`                             | Iconos de la interfaz                                  | En uso                       |
-| `dotlottie-react`                          | Animación del inicio de sesión                         | En uso                       |
-| `@tanstack/react-query`                    | Manejo de datos del servidor (cargando, error, caché)  | Propuesta                    |
-| `react-hook-form` y `zod`                  | Formularios y validaciones                             | Propuesta                    |
-| `vitest` y `@testing-library/react`        | Pruebas                                                | Propuesta, para más adelante |
+Pega esta tabla en la sección 4. Reemplaza la tabla de librerías anterior; la sección “Datos base” no cambia.
+
+| Librería                                                                 | Para qué                                    | Estado                            | Acción previa                                                       |
+| ------------------------------------------------------------------------ | ------------------------------------------- | --------------------------------- | ------------------------------------------------------------------- |
+| `react`, `react-dom`, `typescript`, `vite`, `@vitejs/plugin-react`       | Base del proyecto                           | En uso                            | Ninguna                                                             |
+| `react-router` (versión 7)                                               | Navegación entre pantallas                  | En uso                            | `npm uninstall react-router-dom` y luego `npm install react-router` |
+| `@supabase/supabase-js`                                                  | Leer datos de Supabase                      | En uso                            | Ninguna                                                             |
+| `firebase`                                                               | Inicio de sesión (Firebase Authentication)  | En uso                            | `npm install firebase@latest` y comprobar con `npm run build`       |
+| `tailwindcss` y `@tailwindcss/vite`                                      | Estilos (versión 4, sin PostCSS ni `init`)  | En uso                            | Ninguna                                                             |
+| `clsx` y `tailwind-merge`                                                | Combinar clases con `cn()`                  | En uso                            | Ninguna                                                             |
+| `lucide-react`                                                           | Iconos                                      | En uso                            | Ninguna                                                             |
+| `@lottiefiles/dotlottie-react`                                           | Animación del inicio de sesión              | En uso                            | Corregir el nombre en el README                                     |
+| `@tanstack/react-query`                                                  | Datos del servidor (cargando, error, caché) | En uso, si el grupo aprueba       | Aprobar en el PR                                                    |
+| `react-hook-form`, `zod` y `@hookform/resolvers`                         | Formularios y validaciones                  | En uso, si el grupo aprueba       | Agregar `@hookform/resolvers` al README                             |
+| `supabase` (CLI)                                                         | Migraciones, tipos y entorno local          | En uso, dependencia de desarrollo | Ninguna                                                             |
+| `vitest`, `jsdom`, `@testing-library/react`, `@testing-library/jest-dom` | Pruebas                                     | Instaladas, sin pruebas todavía   | Ninguna                                                             |
+| `ajv`                                                                    | Sin función conocida en el proyecto         | Pendiente                         | Si nadie lo necesita, `npm uninstall ajv`                           |
+| `@types/node`                                                            | Tipos de Node                               | En uso                            | Alinear la versión mayor con `.nvmrc`                               |
 
 ### Datos base del proyecto
 
@@ -227,6 +232,24 @@ Reglas de la conexión:
   npx supabase gen types typescript --project-id vphjvtrjmhmdhozxhtww > src/core/types/database.ts
   ```
   Se regeneran cada vez que cambia la base de datos.
+
+#### Flujo típico de trabajo localmente (supabse cli)
+
+| Momento                                      | Comando                  |
+| -------------------------------------------- | ------------------------ |
+| Empiezo a trabajar                           | `npm run db:local`       |
+| Cambié el esquema remoto (nueva tabla, etc.) | `npm run db:tipos`       |
+| Traje migraciones nuevas con git             | `npm run db:local:reset` |
+| Quiero ver qué migraciones están aplicadas   | `npm run db:migraciones` |
+| Termino de trabajar                          | `npm run db:local:parar` |
+
+**Regla mental**
+
+- **`db:local`** → enciende
+- **`db:local:parar`** → apaga
+- **`db:local:reset`** → reinicia desde cero (destructivo, local)
+- **`db:migraciones`** → consulta el estado
+- **`db:tipos`** → sincroniza TypeScript con el esquema remoto
 
 ### Variables de entorno
 
