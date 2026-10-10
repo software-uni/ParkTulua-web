@@ -1,121 +1,149 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+    <main className="min-h-screen bg-neutro-100 font-sans p-8">
+      <div className="max-w-5xl mx-auto space-y-8">
+
+        <header>
+          <h1 className="text-3xl font-bold text-neutro-900">
+            Prueba del Theme Global
+          </h1>
+          <p className="text-neutro-600 mt-2">
+            Verificando que los tokens de <code>index.css</code> generan utilidades.
           </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+        </header>
 
-      <div className="ticks"></div>
+        {/* Colores de Marca */}
+        <section>
+          <h2 className="text-xl font-semibold text-neutro-900 mb-3">
+            Colores de Marca
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-marca-primario text-white p-6 rounded-card shadow-card">
+              <p className="font-semibold">marca-primario</p>
+              <p className="text-sm opacity-90">#6b5aed</p>
+            </div>
+            <div className="bg-marca-oscuro text-white p-6 rounded-card shadow-card">
+              <p className="font-semibold">marca-oscuro</p>
+              <p className="text-sm opacity-90">#4c3bca</p>
+            </div>
+            <div className="bg-marca-claro text-marca-oscuro p-6 rounded-card shadow-card">
+              <p className="font-semibold">marca-claro</p>
+              <p className="text-sm opacity-80">#ebe8ff</p>
+            </div>
+          </div>
+        </section>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {/* Estados */}
+        <section>
+          <h2 className="text-xl font-semibold text-neutro-900 mb-3">
+            Estados de Disponibilidad
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-estado-disponible-bg border border-estado-disponible rounded-card p-6 shadow-card">
+              <span className="inline-block bg-estado-disponible text-white text-xs font-semibold px-3 py-1 rounded-chip">
+                Disponible
+              </span>
+              <p className="mt-3 text-estado-disponible-texto font-medium">
+                12 cupos libres
+              </p>
+            </div>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+            <div className="bg-estado-poca-bg border border-estado-poca rounded-card p-6 shadow-card">
+              <span className="inline-block bg-estado-poca text-white text-xs font-semibold px-3 py-1 rounded-chip">
+                Poca disponibilidad
+              </span>
+              <p className="mt-3 text-estado-poca-texto font-medium">
+                Solo 3 cupos
+              </p>
+            </div>
+
+            <div className="bg-estado-lleno-bg border border-estado-lleno rounded-card p-6 shadow-card">
+              <span className="inline-block bg-estado-lleno text-white text-xs font-semibold px-3 py-1 rounded-chip">
+                Lleno
+              </span>
+              <p className="mt-3 text-estado-lleno-texto font-medium">
+                Sin cupos
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Neutros */}
+        <section>
+          <h2 className="text-xl font-semibold text-neutro-900 mb-3">
+            Colores Neutros
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="bg-neutro-900 text-white p-4 rounded-card text-center text-sm">
+              neutro-900
+            </div>
+            <div className="bg-neutro-600 text-white p-4 rounded-card text-center text-sm">
+              neutro-600
+            </div>
+            <div className="bg-neutro-300 text-neutro-900 p-4 rounded-card text-center text-sm">
+              neutro-300
+            </div>
+            <div className="bg-neutro-100 text-neutro-900 p-4 rounded-card text-center text-sm border border-neutro-300">
+              neutro-100
+            </div>
+            <div className="bg-neutro-0 text-neutro-900 p-4 rounded-card text-center text-sm border border-neutro-300">
+              neutro-0
+            </div>
+          </div>
+        </section>
+
+        {/* Radios */}
+        <section>
+          <h2 className="text-xl font-semibold text-neutro-900 mb-3">
+            Border Radius
+          </h2>
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="rounded-btn bg-marca-primario text-white px-5 py-3">
+              rounded-btn (8px)
+            </div>
+            <div className="rounded-card bg-marca-primario text-white px-5 py-3">
+              rounded-card (12px)
+            </div>
+            <div className="rounded-modal bg-marca-primario text-white px-5 py-3">
+              rounded-modal (16px)
+            </div>
+            <div className="rounded-chip bg-marca-primario text-white px-5 py-3">
+              rounded-chip (999px)
+            </div>
+          </div>
+        </section>
+
+        {/* Sombras */}
+        <section>
+          <h2 className="text-xl font-semibold text-neutro-900 mb-3">
+            Sombras
+          </h2>
+          <div className="flex flex-wrap gap-6">
+            <div className="bg-neutro-0 shadow-card rounded-card p-6 w-56">
+              shadow-card
+            </div>
+          </div>
+        </section>
+
+        {/* Tipografía */}
+        <section>
+          <h2 className="text-xl font-semibold text-neutro-900 mb-3">
+            Tipografía
+          </h2>
+          <div className="bg-neutro-0 rounded-card shadow-card p-6">
+            <p className="font-sans text-neutro-900 text-2xl">
+              font-sans → Inter
+            </p>
+            <p className="font-sans text-neutro-600 mt-1 text-sm">
+              Si la fuente se ve como Inter, el token está aplicado.
+            </p>
+          </div>
+        </section>
+
+      </div>
+    </main>
   )
 }
 
